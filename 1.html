@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>stardust💫自动生成器</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:system-ui,-apple-system,sans-serif;}
+body{
+  background:#9999ff;
+  min-height:100vh;
+  overflow-x:hidden;
+  position:relative;
+}
+.stardust{
+  position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;
+}
+.star{
+  position:absolute;background:#ffffff;border-radius:50%;opacity:0.65;
+  animation:float 9s infinite ease-in-out;
+}
+@keyframes float{
+  0%{transform:translateY(0px) scale(1);opacity:0.35;}
+  50%{transform:translateY(-50px) scale(1.25);opacity:0.9;}
+  100%{transform:translateY(0px) scale(1);opacity:0.35;}
+}
+@font-face{
+  font-family:"FZLT";
+  src: url("./fonts/FZLTZHK.woff2") format("woff2");
+  font-weight:normal;
+  font-style:normal;
+  font-display:swap;
+}
+.fz-lt {
+  font-family:"FZLT",system-ui,-apple-system,PingFang SC,"MiSans","Noto Sans SC",sans-serif !important;
+}
+#passOverlay{
+  position:fixed;inset:0;background:rgba(0,0,0,0.86);z-index:9999;
+  display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff;padding:24px;
+}
+#main{display:none;position:relative;z-index:1;padding:16px;max-width:1020px;margin:0 auto;}
+h1{text-align:center;color:#0a0a22;margin:16px 0;font-size:1.7rem;}
+.card{background:#ffffff;border-radius:14px;padding:18px;margin-bottom:14px;box-shadow:0 3px 10px rgba(0,0,0,0.12);}
+.previewWrap{width:100%;max-width:430px;margin:0 auto;position:relative;}
+#canvasPreview{width:100%;border:1px solid #aaa;background:#fff;border-radius:8px;}
+.form-item{margin:12px 0;}
+label{display:block;margin:5px 0 4px;font-weight:500;color:#222;}
+input[type="text"]{width:100%;padding:10px;border:1px solid #bbbbbb;border-radius:8px;font-size:16px;}
+input[type="range"]{width:100%;}
+#btnDownload{padding:11px 24px;background:#2550dd;color:#fff;border:none;border-radius:10px;font-size:16px;margin-top:10px;cursor:pointer;transition:0.2s;}
+#btnDownload:disabled{background:#888888;cursor:not-allowed;}
+#btnDownload:hover:not(:disabled){background:#1c40bb;}
+.modal{
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,0.78);z-index:9990;
+  align-items:center;justify-content:center;padding:16px;
+}
+.modal-box{background:#ffffff;padding:22px;border-radius:12px;max-width:500px;width:100%;}
+.crop-area{width:100%;height:330px;border:1px solid #777;position:relative;overflow:hidden;background:#1a1a1a;border-radius:8px;}
+#cropImg{max-width:100%;max-height:100%;position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);}
+.crop-frame{
+  position:absolute;left:14%;top:14%;width:72%;height:72%;
+  border:2px dashed #ffffff;box-shadow:0 0 0 9999px rgba(0,0,0,0.55);border-radius:4px;
+}
+.dlg-text{margin-bottom:14px;line-height:1.7;color:#222;}
+.countdown-tip{color:#c82020;font-weight:bold;margin:10px 0;font-size:15px;}
+</style>
+</head>
+<body>
+<div class="stardust" id="starBg"></div>
+
+<div id="passOverlay">
+  <h2>stardust💫自动生成器 - 访问验证</h2>
+  <p>请输入访问许可码</p>
+  <input id="passInput" type="text" placeholder="许可码" style="margin:12px 0;padding:10px;width:260px;border-radius:6px;border:none"/>
+  <button id="passOk" style="padding:9px 18px;border-radius:6px;border:none;">确认</button>
+</div>
+
+<div id="main">
+  <h1>stardust💫自动生成器</h1>
+  <div class="card">
+    <div class="form-item">
+      <label>班级</label>
+      <input id="inpClass" type="text" placeholder="例如：高二2班" class="fz-lt" value=""/>
+    </div>
+    <div class="form-item">
+      <label>姓名</label>
+      <input id="inpName" type="text" placeholder="例如：星尘" class="fz-lt" value=""/>
+    </div>
+    <div class="form-item">
+      <label>上传证件照片（裁剪后放入头像框）</label>
+      <input id="filePhoto" type="file" accept="image/*"/>
+    </div>
+
+    <div class="form-item">
+      <label>文字缩放 <span id="scaleVal">1.00</span></label>
+      <input id="sliderScale" type="range" min="0.6" max="1.6" step="0.02" value="1.0"/>
+    </div>
+    <div class="form-item">
+      <label>文字X偏移 <span id="offXval">0</span></label>
+      <input id="sliderX" type="range" min="-40" max="40" step="1" value="0"/>
+    </div>
+    <div class="form-item">
+      <label>文字Y偏移 <span id="offYval">0</span></label>
+      <input id="sliderY" type="range" min="-40" max="40" step="1" value="0"/>
+    </div>
+
+    <div class="form-item">
+      <label>头像X位置 <span id="avatarXVal">0</span></label>
+      <input id="sliderAvatarX" type="range" min="-80" max="80" step="1" value="0"/>
+    </div>
+    <div class="form-item">
+      <label>头像Y位置 <span id="avatarYVal">0</span></label>
+      <input id="sliderAvatarY" type="range" min="-80" max="80" step="1" value="0"/>
+    </div>
+    <div class="form-item">
+      <label>头像缩放 <span id="avatarScaleVal">1.00</span></label>
+      <input id="sliderAvatarScale" type="range" min="0.5" max="1.5" step="0.02" value="1.0"/>
+    </div>
+  </div>
+
+  <div class="previewWrap">
+    <canvas id="canvasPreview"></canvas>
+  </div>
+
+  <div style="text-align:center;margin:18px 0;">
+    <button id="btnDownload">生成并下载压缩包</button>
+  </div>
+</div>
+
+<div class="modal" id="cropModal">
+  <div class="modal-box">
+    <h3>裁剪头像</h3>
+    <div class="crop-area">
+      <img id="cropImg" />
+      <div class="crop-frame"></div>
+    </div>
+    <p>拖动图片调整位置，滚轮缩放</p>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:12px;">
+      <button id="cropCancel">取消</button>
+      <button id="cropConfirm">确认裁剪</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="agreeModal">
+  <div class="modal-box">
+    <h3>重要免责声明</h3>
+    <p class="dlg-text">我同意：本工具仅作为模板演示使用，生成内容<strong>严禁用于伪造真实证件</strong>。如自行使用造成学校处分、处罚或其他后果，全部责任由本人承担，与制作者无关。</p>
+    <div class="countdown-tip" id="cdText">请等待 3 秒...</div>
+    <button id="btnAgree" disabled>已确认</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script>
+const starBg = document.getElementById('starBg');
+for(let i=0;i<65;i++){
+  const s = document.createElement('div');
+  s.className='star';
+  s.style.left = Math.random()*100+'%';
+  s.style.top = Math.random()*100+'%';
+  s.style.width = (2+Math.random()*6)+'px';
+  s.style.height = s.style.width;
+  s.style.animationDelay = Math.random()*9+'s';
+  starBg.appendChild(s);
+}
+
+const correctPass = "20100812";
+const overlay = document.getElementById('passOverlay');
+const main = document.getElementById('main');
+document.getElementById('passOk').onclick=()=>{
+  const v = document.getElementById('passInput').value.trim();
+  if(v === correctPass){
+    overlay.style.display='none';
+    main.style.display='block';
+    initCanvas();
+  }else{
+    alert("许可码错误");
+  }
+};
+
+let canvas, ctx;
+let templateFront, templateBack;
+let userPhotoCropped = null;
+let textScale = 1.0, textOffX = 0, textOffY = 0;
+let avatarOffX = 0, avatarOffY = 0, avatarScale = 1.0;
+
+async function initCanvas(){
+  canvas = document.getElementById('canvasPreview');
+  ctx = canvas.getContext('2d');
+  canvas.width = 650;
+  canvas.height = 1000;
+  templateFront = await loadImage("./front.png");
+  templateBack = await loadImage("./back.png");
+  render();
+}
+function loadImage(src){
+  return new Promise(res=>{
+    const img = new Image();
+    img.onload = ()=>res(img);
+    img.src = src;
+  })
+}
+
+function render(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.drawImage(templateFront,0,0,canvas.width,canvas.height);
+
+  // 文字：水平，右对齐，自动放在模板标签后方，可整体偏移
+  ctx.font = `${textScale*38}px "FZLT"`;
+  ctx.fillStyle = "#000000";
+  ctx.textAlign = "left";
+  // 基准位置：模板“班级：”后面
+  ctx.fillText(document.getElementById('inpClass').value, 215 + textOffX, 248 + textOffY);
+  // 基准位置：模板“姓名：”后面
+  ctx.fillText(document.getElementById('inpName').value, 215 + textOffX, 298 + textOffY);
+
+  // 头像独立位置和缩放
+  if(userPhotoCropped){
+    const baseW = 210;
+    const baseH = 260;
+    const w = baseW * avatarScale;
+    const h = baseH * avatarScale;
+    const x = 380 + avatarOffX - (w - baseW) / 2;
+    const y = 640 + avatarOffY - (h - baseH) / 2;
+    ctx.drawImage(userPhotoCropped, x, y, w, h);
+  }
+}
+
+// 文字控件
+const sliderScale = document.getElementById('sliderScale');
+const sliderX = document.getElementById('sliderX');
+const sliderY = document.getElementById('sliderY');
+const scaleVal = document.getElementById('scaleVal');
+const offXVal = document.getElementById('offXval');
+const offYVal = document.getElementById('offYval');
+
+// 头像控件
+const sliderAvatarX = document.getElementById('sliderAvatarX');
+const sliderAvatarY = document.getElementById('sliderAvatarY');
+const sliderAvatarScale = document.getElementById('sliderAvatarScale');
+const avatarXVal = document.getElementById('avatarXVal');
+const avatarYVal = document.getElementById('avatarYVal');
+const avatarScaleVal = document.getElementById('avatarScaleVal');
+
+function updateValues(){
+  textScale = parseFloat(sliderScale.value);
+  textOffX = parseInt(sliderX.value);
+  textOffY = parseInt(sliderY.value);
+  avatarOffX = parseInt(sliderAvatarX.value);
+  avatarOffY = parseInt(sliderAvatarY.value);
+  avatarScale = parseFloat(sliderAvatarScale.value);
+
+  scaleVal.textContent = textScale.toFixed(2);
+  offXVal.textContent = textOffX;
+  offYVal.textContent = textOffY;
+  avatarXVal.textContent = avatarOffX;
+  avatarYVal.textContent = avatarOffY;
+  avatarScaleVal.textContent = avatarScale.toFixed(2);
+  render();
+}
+
+sliderScale.addEventListener('input', updateValues);
+sliderX.addEventListener('input', updateValues);
+sliderY.addEventListener('input', updateValues);
+sliderAvatarX.addEventListener('input', updateValues);
+sliderAvatarY.addEventListener('input', updateValues);
+sliderAvatarScale.addEventListener('input', updateValues);
+document.getElementById('inpClass').addEventListener('input', render);
+document.getElementById('inpName').addEventListener('input', render);
+
+// 头像裁剪弹窗
+const filePhoto = document.getElementById('filePhoto');
+const cropModal = document.getElementById('cropModal');
+const cropImg = document.getElementById('cropImg');
+const cropCancel = document.getElementById('cropCancel');
+const cropConfirm = document.getElementById('cropConfirm');
+let cropSrc = null;
+let cropScale = 1, cropDx = 0, cropDy = 0;
+
+filePhoto.onchange = e=>{
+  const f = e.target.files[0];
+  if(!f) return;
+  const reader = new FileReader();
+  reader.onload = ev=>{
+    cropImg.src = ev.target.result;
+    cropSrc = ev.target.result;
+    cropScale = 1; cropDx = 0; cropDy = 0;
+    cropModal.style.display = 'flex';
+  };
+  reader.readAsDataURL(f);
+};
+cropCancel.onclick = ()=>{
+  cropModal.style.display = 'none';
+  filePhoto.value = '';
+};
+cropConfirm.onclick = ()=>{
+  const c = document.createElement('canvas');
+  c.width = 210; c.height = 260;
+  const cx = c.getContext('2d');
+  const im = new Image();
+  im.src = cropSrc;
+  im.onload = ()=>{
+    cx.drawImage(im,0,0,210,260);
+    userPhotoCropped = c;
+    render();
+  };
+  cropModal.style.display = 'none';
+};
+
+// 导出zip
+const btnDownload = document.getElementById('btnDownload');
+const agreeModal = document.getElementById('agreeModal');
+const btnAgree = document.getElementById('btnAgree');
+btnDownload.onclick = ()=>{
+  agreeModal.style.display = 'flex';
+  btnAgree.disabled = true;
+  let cnt = 3;
+  const timer = setInterval(()=>{
+    cnt--;
+    document.getElementById('cdText').textContent = `请等待 ${cnt} 秒...`;
+    if(cnt<=0){
+      clearInterval(timer);
+      btnAgree.disabled = false;
+      document.getElementById('cdText').textContent = "可以确认导出";
+    }
+  },1000);
+};
+btnAgree.onclick = async ()=>{
+  agreeModal.style.display = 'none';
+  const frontCanvas = document.createElement('canvas');
+  frontCanvas.width = 650; frontCanvas.height = 1000;
+  const fctx = frontCanvas.getContext('2d');
+  fctx.drawImage(templateFront,0,0,650,1000);
+  fctx.font = `${textScale*38}px "FZLT"`;
+  fctx.fillStyle = "#000000";
+  fctx.textAlign = "left";
+  fctx.fillText(document.getElementById('inpClass').value, 215 + textOffX, 248 + textOffY);
+  fctx.fillText(document.getElementById('inpName').value, 215 + textOffX, 298 + textOffY);
+  if(userPhotoCropped){
+    const baseW = 210, baseH = 260;
+    const w = baseW * avatarScale;
+    const h = baseH * avatarScale;
+    const x = 380 + avatarOffX - (w - baseW) / 2;
+    const y = 640 + avatarOffY - (h - baseH) / 2;
+    fctx.drawImage(userPhotoCropped, x, y, w, h);
+  }
+
+  const backCanvas = document.createElement('canvas');
+  backCanvas.width = 650; backCanvas.height = 1000;
+  const bctx = backCanvas.getContext('2d');
+  bctx.drawImage(templateBack,0,0,650,1000);
+
+  const zip = new JSZip();
+  zip.file("出入证_正面.png", frontCanvas.toDataURL("image/png").split(',')[1], {base64:true});
+  zip.file("出入证_背面.png", backCanvas.toDataURL("image/png").split(',')[1], {base64:true});
+  zip.file("使用说明.txt", `导出完成。打印时设置尺寸：宽65mm × 高100mm。制作者：xytwuming💫`);
+  const blob = await zip.generateAsync({type:"blob"});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = "stardust_出入证.zip";
+  a.click();
+  URL.revokeObjectURL(a.href);
+};
+</script>
+</body>
+</html>
