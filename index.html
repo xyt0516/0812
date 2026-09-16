@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
 <title>stardust💫自动生成器</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;font-family:system-ui,-apple-system,sans-serif;}
@@ -11,6 +11,7 @@ body{
   min-height:100vh;
   overflow-x:hidden;
   position:relative;
+  padding-bottom:30px;
 }
 .stardust{
   position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;
@@ -51,18 +52,20 @@ input[type="range"]{width:100%;}
 #btnDownload:disabled{background:#888888;cursor:not-allowed;}
 #btnDownload:hover:not(:disabled){background:#1c40bb;}
 .modal{
-  display:none;position:fixed;inset:0;background:rgba(0,0,0,0.78);z-index:9990;
-  align-items:center;justify-content:center;padding:16px;
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9990;
+  align-items:center;justify-content:center;padding:12px;
 }
-.modal-box{background:#ffffff;padding:22px;border-radius:12px;max-width:500px;width:100%;}
-.crop-area{width:100%;height:330px;border:1px solid #777;position:relative;overflow:hidden;background:#1a1a1a;border-radius:8px;}
-#cropImg{max-width:100%;max-height:100%;position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);}
+.modal-box{background:#ffffff;padding:16px;border-radius:12px;width:100%;max-width:420px;}
+.crop-area{width:100%;height:340px;border:1px solid #777;position:relative;overflow:hidden;background:#1a1a1a;border-radius:8px;touch-action:none;}
+#cropImg{position:absolute;transform-origin:0 0;will-change:transform;}
 .crop-frame{
   position:absolute;left:14%;top:14%;width:72%;height:72%;
-  border:2px dashed #ffffff;box-shadow:0 0 0 9999px rgba(0,0,0,0.55);border-radius:4px;
+  border:2px dashed #ffffff;box-shadow:0 0 0 9999px rgba(0,0,0,0.55);border-radius:4px;pointer-events:none;
 }
+.crop-buttons{display:flex;gap:10px;justify-content:flex-end;margin-top:12px;}
 .dlg-text{margin-bottom:14px;line-height:1.7;color:#222;}
 .countdown-tip{color:#c82020;font-weight:bold;margin:10px 0;font-size:15px;}
+.version-info{text-align:center;color:#666;font-size:14px;margin-top:20px;}
 </style>
 </head>
 <body>
@@ -125,17 +128,18 @@ input[type="range"]{width:100%;}
   <div style="text-align:center;margin:18px 0;">
     <button id="btnDownload">生成并下载压缩包</button>
   </div>
+
+  <div class="version-info">V1.0 测试版</div>
 </div>
 
 <div class="modal" id="cropModal">
   <div class="modal-box">
-    <h3>裁剪头像</h3>
-    <div class="crop-area">
+    <div class="crop-area" id="cropArea">
       <img id="cropImg" />
       <div class="crop-frame"></div>
     </div>
-    <p>拖动图片调整位置，滚轮缩放</p>
-    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:12px;">
+    <p style="margin:8px 0;font-size:14px;">拖动图片，双指缩放调整位置</p>
+    <div class="crop-buttons">
       <button id="cropCancel">取消</button>
       <button id="cropConfirm">确认裁剪</button>
     </div>
@@ -206,16 +210,12 @@ function render(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
   ctx.drawImage(templateFront,0,0,canvas.width,canvas.height);
 
-  // 文字：水平，右对齐，自动放在模板标签后方，可整体偏移
   ctx.font = `${textScale*38}px "FZLT"`;
   ctx.fillStyle = "#000000";
   ctx.textAlign = "left";
-  // 基准位置：模板“班级：”后面
   ctx.fillText(document.getElementById('inpClass').value, 215 + textOffX, 248 + textOffY);
-  // 基准位置：模板“姓名：”后面
   ctx.fillText(document.getElementById('inpName').value, 215 + textOffX, 298 + textOffY);
 
-  // 头像独立位置和缩放
   if(userPhotoCropped){
     const baseW = 210;
     const baseH = 260;
@@ -227,7 +227,6 @@ function render(){
   }
 }
 
-// 文字控件
 const sliderScale = document.getElementById('sliderScale');
 const sliderX = document.getElementById('sliderX');
 const sliderY = document.getElementById('sliderY');
@@ -235,7 +234,6 @@ const scaleVal = document.getElementById('scaleVal');
 const offXVal = document.getElementById('offXval');
 const offYVal = document.getElementById('offYval');
 
-// 头像控件
 const sliderAvatarX = document.getElementById('sliderAvatarX');
 const sliderAvatarY = document.getElementById('sliderAvatarY');
 const sliderAvatarScale = document.getElementById('sliderAvatarScale');
@@ -269,14 +267,53 @@ sliderAvatarScale.addEventListener('input', updateValues);
 document.getElementById('inpClass').addEventListener('input', render);
 document.getElementById('inpName').addEventListener('input', render);
 
-// 头像裁剪弹窗
-const filePhoto = document.getElementById('filePhoto');
-const cropModal = document.getElementById('cropModal');
+// 手机端拖动+双指缩放裁剪
+const cropArea = document.getElementById('cropArea');
 const cropImg = document.getElementById('cropImg');
 const cropCancel = document.getElementById('cropCancel');
 const cropConfirm = document.getElementById('cropConfirm');
+const cropModal = document.getElementById('cropModal');
 let cropSrc = null;
-let cropScale = 1, cropDx = 0, cropDy = 0;
+let imgX = 0, imgY = 0, imgScale = 1;
+let startX = 0, startY = 0, startDist = 0, startScale = 1;
+let isDrag = false;
+
+function resetCrop(){
+  imgX = 0; imgY = 0; imgScale = 1;
+  updateCropTransform();
+}
+function updateCropTransform(){
+  cropImg.style.transform = `translate(${imgX}px,${imgY}px) scale(${imgScale})`;
+}
+function getDistance(touches){
+  const dx = touches[1].clientX - touches[0].clientX;
+  const dy = touches[1].clientY - touches[0].clientY;
+  return Math.hypot(dx, dy);
+}
+
+cropArea.addEventListener('touchstart', e=>{
+  e.preventDefault();
+  if(e.touches.length === 1){
+    isDrag = true;
+    startX = e.touches[0].clientX - imgX;
+    startY = e.touches[0].clientY - imgY;
+  }else if(e.touches.length === 2){
+    isDrag = false;
+    startDist = getDistance(e.touches);
+    startScale = imgScale;
+  }
+});
+cropArea.addEventListener('touchmove', e=>{
+  e.preventDefault();
+  if(e.touches.length === 1 && isDrag){
+    imgX = e.touches[0].clientX - startX;
+    imgY = e.touches[0].clientY - startY;
+  }else if(e.touches.length === 2){
+    const dist = getDistance(e.touches);
+    imgScale = Math.max(0.5, Math.min(3.0, startScale * dist / startDist));
+  }
+  updateCropTransform();
+});
 
 filePhoto.onchange = e=>{
   const f = e.target.files[0];
@@ -285,7 +322,7 @@ filePhoto.onchange = e=>{
   reader.onload = ev=>{
     cropImg.src = ev.target.result;
     cropSrc = ev.target.result;
-    cropScale = 1; cropDx = 0; cropDy = 0;
+    resetCrop();
     cropModal.style.display = 'flex';
   };
   reader.readAsDataURL(f);
@@ -301,7 +338,7 @@ cropConfirm.onclick = ()=>{
   const im = new Image();
   im.src = cropSrc;
   im.onload = ()=>{
-    cx.drawImage(im,0,0,210,260);
+    cx.drawImage(im, -imgX/imgScale, -imgY/imgScale, im.width/imgScale, im.height/imgScale, 0,0,210,260);
     userPhotoCropped = c;
     render();
   };
@@ -354,7 +391,7 @@ btnAgree.onclick = async ()=>{
   const zip = new JSZip();
   zip.file("出入证_正面.png", frontCanvas.toDataURL("image/png").split(',')[1], {base64:true});
   zip.file("出入证_背面.png", backCanvas.toDataURL("image/png").split(',')[1], {base64:true});
-  zip.file("使用说明.txt", `导出完成。打印时设置尺寸：宽65mm × 高100mm。制作者：xytwuming💫`);
+  zip.file("使用说明.txt", `导出完成。打印时设置尺寸：宽65mm × 高100mm。制作者：xytwuming💫\n版本：V1.0 测试版`);
   const blob = await zip.generateAsync({type:"blob"});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
